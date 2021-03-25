@@ -12,7 +12,7 @@ locals {
   ssh_key_ids    = [ibm_is_ssh_key.generated_key.id]
   subnets        = data.ibm_is_vpc.vpc.subnets
   bastion_subnet = local.subnets.0
-  instances      = module.vsi-instance.0.instances
+  instances      = module.vsi-instance.instances
 }
 
 resource null_resource print-vpc_name {
