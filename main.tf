@@ -50,7 +50,7 @@ resource ibm_is_ssh_key generated_key {
 
 # create the vsi instance
 module vsi-instance {
-  source = "./vsi-instance"
+  source = "submodules/vsi-instance"
 
   name              = "${local.prefix_name}-bastion-instance"
   resource_group_id = data.ibm_resource_group.group.id
@@ -97,7 +97,7 @@ resource "ibm_is_security_group_network_interface_attachment" "under_maintenance
 # Ansible playbook to install OpenVPN
 #
 module ansible {
-  source = "./ansible"
+  source = "submodules/ansible"
 
   bastion_ip             = module.bastion.bastion_public_ip
   instances              = local.instances
