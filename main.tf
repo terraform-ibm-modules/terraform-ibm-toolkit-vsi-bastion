@@ -18,7 +18,7 @@ locals {
 # get the information about the existing vpc instance
 data ibm_is_vpc vpc {
   name           = var.vpc_name
-  resource_group = data.ibm_resource_group.group
+  resource_group = data.ibm_resource_group.group.id
 }
 
 resource tls_private_key ssh {
