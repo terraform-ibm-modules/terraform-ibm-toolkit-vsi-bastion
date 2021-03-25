@@ -9,6 +9,7 @@ data ibm_resource_group group {
 }
 
 locals {
+  prefix_name    = lower(replace(var.name_prefix != "" ? var.name_prefix : var.resource_group_name, "_", "-"))
   ssh_key_ids    = [ibm_is_ssh_key.generated_key.id]
   subnets        = data.ibm_is_vpc.vpc.subnets
   bastion_subnet = local.subnets.0
@@ -35,7 +36,7 @@ resource tls_private_key ssh {
 
 # generate ssh key
 resource ibm_is_ssh_key generated_key {
-  name           = "${var.name_prefix}-${var.region}-key"
+  name           = "${local.prefix_name}-${var.region}-key"
   public_key     = tls_private_key.ssh.public_key_openssh
   resource_group = data.ibm_resource_group.group.id
   tags           = concat(var.tags, ["vpc"])
@@ -45,7 +46,7 @@ resource ibm_is_ssh_key generated_key {
 module vsi-instance {
   source = "./vsi-instance"
 
-  name              = "${var.name_prefix}-bastion-instance"
+  name              = "${local.prefix_name}-bastion-instance"
   resource_group_id = data.ibm_resource_group.group.id
   vpc_id            = data.ibm_is_vpc.vpc.id
   vpc_subnets       = local.subnets
@@ -57,7 +58,7 @@ module "bastion" {
   source  = "we-work-in-the-cloud/vpc-bastion/ibm"
   version = "0.0.5"
 
-  name              = "${var.name_prefix}-bastion"
+  name              = "${local.prefix_name}-bastion"
   resource_group_id = data.ibm_resource_group.group.id
   vpc_id            = data.ibm_is_vpc.vpc.id
   subnet_id         = local.bastion_subnet.id
