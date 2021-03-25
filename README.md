@@ -9,14 +9,13 @@ This module deploys OpenVPN inside a VPC Virtual Server Instance (VSI) using Ter
 <table cellspacing="10" border="0">
   <tr>
     <td>
-      <img src="./architecture.png" />
+      <img src="docs/architecture.png" />
     </td>
     <td>
-      <img src="./openvpn.png" />
+      <img src="docs/openvpn.png" />
     </td>
   </tr>
 </table>
-
 
 
 ## Software dependencies
