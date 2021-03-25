@@ -30,7 +30,7 @@ data ibm_is_vpc vpc {
 }
 
 data ibm_is_subnet vpc_subnet {
-  count = length(data.ibm_is_vpc.vpc.subnets)
+  count = var.subnet_count
 
   identifier = data.ibm_is_vpc.vpc.subnets[count.index].id
 }

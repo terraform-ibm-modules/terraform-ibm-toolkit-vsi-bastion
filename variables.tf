@@ -30,6 +30,11 @@ variable "vpc_name" {
   description = "The name of the vpc instance"
 }
 
+variable "subnet_count" {
+  type        = number
+  description = "The number of subnets on the vpc instance"
+}
+
 variable "openvpn_server_network" {
   default = "10.66.0.0"
 }

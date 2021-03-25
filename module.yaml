@@ -18,6 +18,10 @@ versions:
       moduleRef:
         id: vpc
         output: name
+    - name: subnet_count
+      moduleRef:
+        id: vpc
+        output: subnet_count
     - name: resource_group_name
       scope: global
     - name: region
