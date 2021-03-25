@@ -11,7 +11,7 @@ data ibm_resource_group group {
 locals {
   prefix_name    = lower(replace(var.name_prefix != "" ? var.name_prefix : var.resource_group_name, "_", "-"))
   ssh_key_ids    = [ibm_is_ssh_key.generated_key.id]
-  subnets        = data.ibm_is_vpc.vpc.subnets
+  subnets        = data.ibm_is_subnet.vpc_subnet
   bastion_subnet = local.subnets.0
   instances      = module.vsi-instance.instances
 }
@@ -27,6 +27,12 @@ data ibm_is_vpc vpc {
   depends_on = [null_resource.print-vpc_name]
 
   name           = var.vpc_name
+}
+
+data ibm_is_subnet vpc_subnet {
+  count = length(data.ibm_is_vpc.vpc.subnets)
+
+  identifier = data.ibm_is_vpc.vpc.subnets[count.index].id
 }
 
 resource tls_private_key ssh {
