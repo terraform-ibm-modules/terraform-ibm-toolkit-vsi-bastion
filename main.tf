@@ -15,8 +15,16 @@ locals {
   instances      = module.vsi-instance.0.instances
 }
 
+resource null_resource print-vpc_name {
+  provisioner "local-exec" {
+    command = "echo ${var.vpc_name}"
+  }
+}
+
 # get the information about the existing vpc instance
 data ibm_is_vpc vpc {
+  depends_on = [null_resource.print-vpc_name]
+
   name           = var.vpc_name
 }
 
