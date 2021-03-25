@@ -1,5 +1,5 @@
 module "bastion" {
-  source = "github.com/cloud-native-toolkit/terraform-vsi-bastion?ref=initial-version"
+  source = "./module"
 
   resource_group_name = var.resource_group_name
   region              = var.region
