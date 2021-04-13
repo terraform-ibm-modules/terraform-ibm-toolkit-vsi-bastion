@@ -43,14 +43,8 @@ variable "name_prefix" {
   default     = ""
 }
 
-variable "vpc_cluster" {
-  type        = bool
-  description = "Flag indicating that this is a vpc cluster"
-  default     = false
-}
-
-variable "vpc_public_gateway" {
-  type        = string
-  description = ""
-  default     = "true"
+variable "vpc_subnet_count" {
+  type        = number
+  description = "The number of subnets to create for the VPC instance"
+  default     = 0
 }

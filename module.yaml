@@ -2,10 +2,9 @@ name: vsi-bastion
 type: terraform
 description: Module to provision Basion in a vsi image
 tags:
-    - infrastructure
     - network
     - vpc
-    - vpn
+    - bastion
 versions:
 - platforms: []
   dependencies:
