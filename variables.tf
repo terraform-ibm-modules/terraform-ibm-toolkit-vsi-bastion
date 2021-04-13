@@ -1,6 +1,6 @@
 variable "resource_group_name" {
   type        = string
-  description = "The name of the IBM Cloud resource group where the cluster will be created/can be found."
+  description = "The name of the IBM Cloud resource group where the Bastion instance will be created."
 }
 
 variable "region" {
@@ -27,7 +27,7 @@ variable "tags" {
 
 variable "vpc_name" {
   type        = string
-  description = "The name of the vpc instance"
+  description = "The name of the existing VPC instance"
 }
 
 variable "subnet_count" {
@@ -35,6 +35,12 @@ variable "subnet_count" {
   description = "The number of subnets on the vpc instance"
 }
 
-variable "openvpn_server_network" {
-  default = "10.66.0.0"
+variable "subnets" {
+  type        = list(object({id = string, zone = string, label = string}))
+  description = "The list of subnet objects where bastion servers will be provisioned"
+}
+
+variable "ssh_key_id" {
+  type        = string
+  description = "The id of a key registered with the VPC"
 }
