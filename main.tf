@@ -48,7 +48,9 @@ module "bastion" {
 
 # open the VPN port on the bastion
 resource ibm_is_security_group_rule vpn {
-  group     = module.bastion.bastion_security_group_id
+  count = var.subnet_count
+
+  group     = module.bastion[count.index].bastion_security_group_id
   direction = "inbound"
   remote    = "0.0.0.0/0"
   udp {
