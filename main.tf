@@ -38,7 +38,7 @@ module "bastion" {
 
   count = var.subnet_count
 
-  name              = "${local.prefix_name}-bastion"
+  name              = "${local.prefix_name}-bastion${format("%02s", count.index)}"
   resource_group_id = data.ibm_resource_group.resource_group.id
   vpc_id            = data.ibm_is_vpc.vpc.id
   subnet_id         = var.subnets[count.index].id
