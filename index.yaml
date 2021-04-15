@@ -62,7 +62,7 @@ versions:
         type: string
       - name: tags
         scope: module
-        type: string
+        type: list(string)
         default: ""
     version: v1.1.1
     outputs:
