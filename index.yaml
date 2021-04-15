@@ -62,6 +62,70 @@ versions:
         type: string
       - name: tags
         scope: module
+        type: string
+    version: v1.1.1
+    outputs:
+      - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
+        description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
+      - name: output bastion_ips {   value = module.bastion[*].bastion_public_ip }
+        description: output bastion_ips {   value = module.bastion[*].bastion_public_ip }
+      - name: output bastion_private_ips {   value = module.bastion[*].bastion_private_ip }
+        description: output bastion_private_ips {   value = module.bastion[*].bastion_private_ip }
+  - platforms: []
+    dependencies:
+      - id: resource-group
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
+            version: ">= 1.0.0"
+      - id: vpc
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
+            version: ">= 1.0.0"
+      - id: subnets
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
+            version: ">= 1.0.0"
+      - id: vpcssh
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
+            version: ">= 1.0.0"
+    variables:
+      - name: vpc_name
+        moduleRef:
+          id: vpc
+          output: name
+        type: string
+      - name: subnet_count
+        moduleRef:
+          id: subnets
+          output: count
+        type: string
+      - name: subnets
+        moduleRef:
+          id: subnets
+          output: subnets
+        type: string
+      - name: resource_group_name
+        moduleRef:
+          id: resource-group
+          output: name
+        type: string
+      - name: ssh_key_id
+        moduleRef:
+          id: vpcssh
+          output: id
+        type: string
+      - name: region
+        scope: global
+        type: string
+      - name: name_prefix
+        scope: global
+        type: string
+      - name: ibmcloud_api_key
+        scope: global
+        type: string
+      - name: tags
+        scope: module
         type: list(string)
     version: v1.1.0
     outputs:
