@@ -1,7 +1,8 @@
 
 locals {
-  prefix_name    = lower(replace(var.name_prefix != "" ? var.name_prefix : var.resource_group_name, "_", "-"))
-  subnets        = data.ibm_is_subnet.vpc_subnet
+  prefix_name = lower(replace(var.name_prefix != "" ? var.name_prefix : var.resource_group_name, "_", "-"))
+  subnets     = data.ibm_is_subnet.vpc_subnet
+  tags        = setsubtract(var.tags, [""])
 }
 
 resource null_resource print-names {
@@ -43,7 +44,7 @@ module "bastion" {
   vpc_id            = data.ibm_is_vpc.vpc.id
   subnet_id         = var.subnets[count.index].id
   ssh_key_ids       = [var.ssh_key_id]
-  tags              = concat(var.tags, ["bastion"])
+  tags              = concat(local.tags, ["bastion"])
 }
 
 # open the VPN port on the bastion
