@@ -2,6 +2,11 @@ output vpc_name {
   value = data.ibm_is_vpc.vpc.name
 }
 
+output instance_count {
+  value = var.subnet_count
+  depends_on = [module.bastion]
+}
+
 output public_ips {
   value = module.bastion[*].bastion_public_ip
 }
