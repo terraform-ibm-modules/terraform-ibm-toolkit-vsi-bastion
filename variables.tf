@@ -46,7 +46,7 @@ variable "ssh_key_id" {
 }
 
 variable "create_public_ip" {
-  type        = boolean
+  type        = bool
   value       = false
   description = "Flag to create a public ip address on the bastion instance"
 }
