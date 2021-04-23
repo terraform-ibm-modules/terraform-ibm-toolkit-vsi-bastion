@@ -4,7 +4,6 @@ output vpc_name {
 
 output instance_count {
   value = var.subnet_count
-  depends_on = [module.bastion]
 }
 
 output public_ips {
