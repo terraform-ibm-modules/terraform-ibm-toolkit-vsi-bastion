@@ -31,6 +31,92 @@ versions:
           id: vpc
           output: name
         type: string
+        description: The name of the existing VPC instance
+      - name: subnet_count
+        moduleRef:
+          id: subnets
+          output: count
+        type: number
+        description: The number of subnets on the vpc instance
+      - name: subnets
+        moduleRef:
+          id: subnets
+          output: subnets
+        type: list(object({id = string, zone = string, label = string}))
+        description: The list of subnet objects where bastion servers will be provisioned
+      - name: resource_group_name
+        moduleRef:
+          id: resource-group
+          output: name
+        type: string
+        description: The name of the IBM Cloud resource group where the Bastion instance will be created.
+      - name: ssh_key_id
+        moduleRef:
+          id: vpcssh
+          output: id
+        type: string
+        description: The id of a key registered with the VPC
+      - name: region
+        scope: global
+        type: string
+        description: The IBM Cloud region where the cluster will be/has been installed.
+      - name: name_prefix
+        scope: global
+        type: string
+        description: The name of the vpc resource
+        default: ""
+        optional: true
+      - name: ibmcloud_api_key
+        scope: global
+        type: string
+        description: The IBM Cloud api token
+      - name: tags
+        scope: module
+        type: list(string)
+        description: List of tags
+        default: []
+        optional: true
+      - name: create_public_ip
+        type: bool
+        description: Flag to create a public ip address on the bastion instance
+        default: false
+        optional: true
+    version: v1.2.0
+    outputs:
+      - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
+        description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
+      - name: output instance_count {   value = var.subnet_count }
+        description: output instance_count {   value = var.subnet_count }
+      - name: output public_ips {   value = module.bastion[*].bastion_public_ip }
+        description: output public_ips {   value = module.bastion[*].bastion_public_ip }
+      - name: output private_ips {   value = module.bastion[*].bastion_private_ip }
+        description: output private_ips {   value = module.bastion[*].bastion_private_ip }
+      - name: output network_interface_ids {   value = module.bastion[*].bastion_network_interface_ids[0] }
+        description: output network_interface_ids {   value = module.bastion[*].bastion_network_interface_ids[0] }
+  - platforms: []
+    dependencies:
+      - id: resource-group
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
+            version: ">= 1.0.0"
+      - id: vpc
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
+            version: ">= 1.0.0"
+      - id: subnets
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
+            version: ">= 1.0.0"
+      - id: vpcssh
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
+            version: ">= 1.0.0"
+    variables:
+      - name: vpc_name
+        moduleRef:
+          id: vpc
+          output: name
+        type: string
       - name: subnet_count
         moduleRef:
           id: subnets
