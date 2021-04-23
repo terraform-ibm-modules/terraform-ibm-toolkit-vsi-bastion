@@ -35,7 +35,7 @@ data ibm_is_subnet vpc_subnet {
 
 module "bastion" {
   source  = "we-work-in-the-cloud/vpc-bastion/ibm"
-  version = "0.0.5"
+  version = "0.0.7"
 
   count = var.subnet_count
 
@@ -45,17 +45,6 @@ module "bastion" {
   subnet_id         = var.subnets[count.index].id
   ssh_key_ids       = [var.ssh_key_id]
   tags              = local.tags
-}
-
-# open the VPN port on the bastion
-resource ibm_is_security_group_rule vpn {
-  count = var.subnet_count
-
-  group     = module.bastion[count.index].bastion_security_group_id
-  direction = "inbound"
-  remote    = "0.0.0.0/0"
-  udp {
-    port_min = 65000
-    port_max = 65000
-  }
+  init_script       = file("${path.module}/scripts/init-jump-server.sh")
+  create_public_ip  = var.create_public_ip
 }
