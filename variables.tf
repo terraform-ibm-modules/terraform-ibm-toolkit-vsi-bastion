@@ -50,3 +50,9 @@ variable "create_public_ip" {
   default     = false
   description = "Flag to create a public ip address on the bastion instance"
 }
+
+variable "allow_ssh_from" {
+  type        = string
+  default     = "10.0.0.0/8"
+  description = "Provides the cidr that will be used for the security group rule that defines ssh input"
+}

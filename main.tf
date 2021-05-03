@@ -47,4 +47,5 @@ module "bastion" {
   tags              = local.tags
   init_script       = file("${path.module}/scripts/init-jump-server.sh")
   create_public_ip  = var.create_public_ip
+  allow_ssh_from    = var.allow_ssh_from
 }
