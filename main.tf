@@ -26,7 +26,7 @@ data ibm_is_subnet vpc_subnet {
   identifier = var.vpc_subnets[count.index].id
 }
 
-module "bastion" {
+module "vsi-instance" {
   source = "github.com/cloud-native-toolkit/terraform-ibm-vpc-vsi.git?ref=v1.2.2"
 
   resource_group_id    = var.resource_group_id

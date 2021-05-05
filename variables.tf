@@ -94,7 +94,7 @@ variable "kms_enabled" {
 variable "kms_key_crn" {
   type        = string
   description = "The crn of the root key in the kms instance. Required if kms_enabled is true"
-  default     = ""
+  default     = null
 }
 
 variable "auto_delete_volume" {
