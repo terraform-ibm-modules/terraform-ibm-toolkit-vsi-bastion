@@ -3,17 +3,37 @@ output vpc_name {
 }
 
 output instance_count {
-  value = var.subnet_count
+  value = var.vpc_subnet_count
 }
 
 output public_ips {
-  value = module.bastion[*].bastion_public_ip
+  value = module.vsi-instance.public_ips
 }
 
 output private_ips {
-  value = module.bastion[*].bastion_private_ip
+  value = module.vsi-instance.private_ips
 }
 
 output network_interface_ids {
-  value = module.bastion[*].bastion_network_interface_ids[0]
+  value = module.vsi-instance.network_interface_ids
+}
+
+output "security_group_id" {
+  description = "The id of the security group that was created"
+  value       = module.vsi-instance.security_group_id
+}
+
+output "security_group" {
+  description = "The security group that was created"
+  value       = module.vsi-instance.security_group
+}
+
+output "maintenance_security_group_id" {
+  description = "The id of the security group that was created"
+  value       = ibm_is_security_group.maintenance.id
+}
+
+output "maintenance_security_group" {
+  description = "The security group that was created"
+  value       = ibm_is_security_group.maintenance
 }

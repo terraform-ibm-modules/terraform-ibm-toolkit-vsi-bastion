@@ -2,6 +2,7 @@
 locals {
   subnets     = data.ibm_is_subnet.vpc_subnet
   tags        = tolist(setsubtract(concat(var.tags, ["bastion"]), [""]))
+  name        = "${replace(var.vpc_name, "/[^a-zA-Z0-9_\\-\\.]/", "")}-${var.label}"
 }
 
 resource null_resource print-names {
@@ -27,7 +28,7 @@ data ibm_is_subnet vpc_subnet {
 }
 
 module "vsi-instance" {
-  source = "github.com/cloud-native-toolkit/terraform-ibm-vpc-vsi.git?ref=v1.2.2"
+  source = "github.com/cloud-native-toolkit/terraform-ibm-vpc-vsi.git?ref=v1.3.0"
 
   resource_group_id    = var.resource_group_id
   region               = var.region
@@ -46,4 +47,30 @@ module "vsi-instance" {
   tags                 = local.tags
   security_group_rules = var.security_group_rules
   label                = var.label
+}
+
+resource ibm_is_security_group maintenance {
+  name           = "${local.name}-maintenance"
+  vpc            = data.ibm_is_vpc.vpc.id
+  resource_group = var.resource_group_id
+}
+
+resource ibm_is_security_group_rule ssh_to_host_in_maintenance {
+  group     = module.vsi-instance.security_group_id
+  direction = "outbound"
+  remote    = ibm_is_security_group.maintenance.id
+  tcp {
+    port_min = 22
+    port_max = 22
+  }
+}
+
+resource ibm_is_security_group_rule maintenance_ssh_inbound {
+  group     = ibm_is_security_group.maintenance.id
+  direction = "inbound"
+  remote    = module.vsi-instance.security_group_id
+  tcp {
+    port_min = 22
+    port_max = 22
+  }
 }
