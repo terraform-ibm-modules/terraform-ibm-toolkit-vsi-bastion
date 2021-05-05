@@ -36,6 +36,7 @@ module "vsi-instance" {
   vpc_name             = var.vpc_name
   vpc_subnet_count     = var.vpc_subnet_count
   vpc_subnets          = var.vpc_subnets
+  image_name           = var.image_name
   profile_name         = var.profile_name
   ssh_key_id           = var.ssh_key_id
   flow_log_cos_bucket_name = var.flow_log_cos_bucket_name
