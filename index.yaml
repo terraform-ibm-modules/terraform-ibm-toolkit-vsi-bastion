@@ -139,6 +139,160 @@ versions:
         description: List of security group rules to set on the bastion security group in addition to the SSH rules
         default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
         optional: true
+    version: v1.3.1
+    outputs:
+      - name: ids
+        description: The instance ids
+      - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
+        description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
+      - name: output instance_count {   value = var.vpc_subnet_count }
+        description: output instance_count {   value = var.vpc_subnet_count }
+      - name: output public_ips {   value = module.vsi-instance.public_ips }
+        description: output public_ips {   value = module.vsi-instance.public_ips }
+      - name: output private_ips {   value = module.vsi-instance.private_ips }
+        description: output private_ips {   value = module.vsi-instance.private_ips }
+      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: security_group_id
+        description: The id of the security group that was created
+      - name: security_group
+        description: The security group that was created
+      - name: maintenance_security_group_id
+        description: The id of the security group that was created
+      - name: maintenance_security_group
+        description: The security group that was created
+  - platforms: []
+    dependencies:
+      - id: resource-group
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
+            version: ">= 1.0.0"
+      - id: vpc
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
+            version: ">= 1.0.0"
+      - id: subnets
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
+            version: ">= 1.0.0"
+      - id: vpcssh
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
+            version: ">= 1.0.0"
+    variables:
+      - name: vpc_name
+        moduleRef:
+          id: vpc
+          output: name
+        type: string
+        description: The name of the vpc instance
+      - name: subnet_count
+        moduleRef:
+          id: subnets
+          output: count
+      - name: subnets
+        moduleRef:
+          id: subnets
+          output: subnets
+      - name: resource_group_name
+        moduleRef:
+          id: resource-group
+          output: name
+      - name: ssh_key_id
+        moduleRef:
+          id: vpcssh
+          output: id
+        type: string
+        description: SSH key ID to inject into the virtual server instance
+      - name: region
+        scope: global
+        type: string
+        description: The IBM Cloud region where the cluster will be/has been installed.
+      - name: name_prefix
+        scope: global
+      - name: ibmcloud_api_key
+        scope: global
+        type: string
+        description: The IBM Cloud api token
+      - name: tags
+        scope: module
+        type: list(string)
+        description: Tags that should be added to the instance
+        default: []
+        optional: true
+      - name: resource_group_id
+        type: string
+        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+      - name: label
+        type: string
+        description: The label for the server instance
+        default: server
+        optional: true
+      - name: image_name
+        type: string
+        description: The name of the image to use for the virtual server
+        default: ibm-ubuntu-18-04-1-minimal-amd64-2
+        optional: true
+      - name: vpc_subnet_count
+        type: number
+        description: Number of vpc subnets
+      - name: vpc_subnets
+        type: |-
+          list(object({
+              label = string
+              id    = string
+              zone  = string
+            }))
+        description: List of subnets with labels
+      - name: profile_name
+        type: string
+        description: Instance profile to use for the bastion instance
+        default: cx2-2x4
+        optional: true
+      - name: allow_ssh_from
+        type: string
+        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        default: 10.0.0.0/8
+        optional: true
+      - name: create_public_ip
+        type: bool
+        description: Set whether to allocate a public IP address for the virtual server instance
+        default: false
+        optional: true
+      - name: init_script
+        type: string
+        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
+        default: ""
+        optional: true
+      - name: flow_log_cos_bucket_name
+        type: string
+        description: Cloud Object Storage bucket id for flow logs (optional)
+        default: ""
+        optional: true
+      - name: kms_enabled
+        type: bool
+        description: Flag indicating that the volumes should be encrypted using a KMS.
+        default: false
+        optional: true
+      - name: kms_key_crn
+        type: string
+        description: The crn of the root key in the kms instance. Required if kms_enabled is true
+        default: "null"
+        optional: true
+      - name: auto_delete_volume
+        type: bool
+        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        default: true
+        optional: true
+      - name: security_group_rules
+        type: |-
+          8
+                }
+              }
+            ]
+        description: List of security group rules to set on the bastion security group in addition to the SSH rules
+        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
+        optional: true
     version: v1.3.0
     outputs:
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
