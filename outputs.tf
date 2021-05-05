@@ -1,3 +1,8 @@
+output "ids" {
+  description = "The instance ids"
+  value       = module.vsi-instance.ids
+}
+
 output vpc_name {
   value = data.ibm_is_vpc.vpc.name
 }
