@@ -8,7 +8,7 @@ tags:
 versions:
 - platforms: []
   dependencies:
-    - id: resource-group
+    - id: resource_group
       refs:
         - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
           version: ">= 1.0.0"
@@ -47,10 +47,10 @@ versions:
       moduleRef:
         id: subnets
         output: subnets
-    - name: resource_group_name
+    - name: resource_group_id
       moduleRef:
-        id: resource-group
-        output: name
+        id: resource_group
+        output: id
     - name: ssh_key_id
       moduleRef:
         id: vpcssh
