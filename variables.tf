@@ -150,14 +150,6 @@ variable "security_group_rules" {
         port_min = 53
         port_max = 53
       }
-    },
-    {
-      name      = "icmp_outbound"
-      direction = "outbound"
-      remote    = "0.0.0.0/0"
-      icmp = {
-        type = 8
-      }
     }
   ]
 }
