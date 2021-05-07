@@ -57,8 +57,6 @@ versions:
         output: id
     - name: region
       scope: global
-    - name: name_prefix
-      scope: global
     - name: ibmcloud_api_key
       scope: global
     - name: tags

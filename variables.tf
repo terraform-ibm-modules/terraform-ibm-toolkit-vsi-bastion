@@ -104,6 +104,7 @@ variable "auto_delete_volume" {
 }
 
 variable "security_group_rules" {
+  type = list(object({}))
   # type = list(object({
   #   name=string,
   #   direction=string,
@@ -149,14 +150,6 @@ variable "security_group_rules" {
       udp = {
         port_min = 53
         port_max = 53
-      }
-    },
-    {
-      name      = "icmp_outbound"
-      direction = "outbound"
-      remote    = "0.0.0.0/0"
-      icmp = {
-        type = 8
       }
     }
   ]
