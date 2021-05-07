@@ -144,11 +144,7 @@ versions:
         default: true
         optional: true
       - name: security_group_rules
-        type: |-
-          8
-                }
-              }
-            ]
+        type: list(object({}))
         description: List of security group rules to set on the bastion security group in addition to the SSH rules
         default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
         optional: true
