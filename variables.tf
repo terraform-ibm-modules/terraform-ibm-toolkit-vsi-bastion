@@ -104,7 +104,6 @@ variable "auto_delete_volume" {
 }
 
 variable "security_group_rules" {
-  type = list(object({}))
   # type = list(object({
   #   name=string,
   #   direction=string,
