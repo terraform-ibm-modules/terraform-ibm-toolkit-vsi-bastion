@@ -8,4 +8,5 @@ module "bastion" {
   vpc_subnet_count    = module.subnets.count
   vpc_subnets         = module.subnets.subnets
   ssh_key_id          = module.vpcssh.id
+  allow_deprecated_image = false
 }

@@ -153,3 +153,9 @@ variable "security_group_rules" {
     }
   ]
 }
+
+variable "allow_deprecated_image" {
+  type        = bool
+  description = "Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision"
+  default     = true
+}

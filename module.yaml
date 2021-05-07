@@ -71,3 +71,7 @@ versions:
         id: kms_key
         output: crn
       optional: true
+    - name: security_group_rules
+      scope: ignore
+    - name: allow_deprecated_image
+      scope: ignore
