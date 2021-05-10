@@ -1,10 +1,19 @@
-output "ids" {
+output ids {
   description = "The instance ids"
   value       = module.vsi-instance.ids
 }
 
+output names {
+  description = "The instance names"
+  value       = module.vsi-instance.names
+}
+
 output vpc_name {
   value = data.ibm_is_vpc.vpc.name
+}
+
+output count {
+  value = var.vpc_subnet_count
 }
 
 output instance_count {
