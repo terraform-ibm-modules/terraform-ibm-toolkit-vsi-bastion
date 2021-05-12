@@ -119,31 +119,19 @@ variable "security_group_rules" {
   description = "List of security group rules to set on the bastion security group in addition to the SSH rules"
   default = [
     {
-      name      = "http_outbound"
+      name      = "private-network"
       direction = "outbound"
-      remote    = "0.0.0.0/0"
-      tcp = {
-        port_min = 80
-        port_max = 80
-      }
+      remote    = "10.0.0.0/8"
     },
     {
-      name      = "https_outbound"
+      name      = "service-endpoints"
       direction = "outbound"
-      remote    = "0.0.0.0/0"
-      tcp = {
-        port_min = 443
-        port_max = 443
-      }
+      remote    = "161.26.0.0/16"
     },
     {
-      name      = "dns_outbound"
+      name      = "iaas-endpoints"
       direction = "outbound"
-      remote    = "0.0.0.0/0"
-      udp = {
-        port_min = 53
-        port_max = 53
-      }
+      remote    = "166.8.0.0/14"
     }
   ]
 }
