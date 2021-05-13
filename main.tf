@@ -48,6 +48,7 @@ module "vsi-instance" {
   security_group_rules = var.security_group_rules
   label                = var.label
   allow_deprecated_image = var.allow_deprecated_image
+  base_security_group  = var.base_security_group
 }
 
 resource ibm_is_security_group maintenance {
