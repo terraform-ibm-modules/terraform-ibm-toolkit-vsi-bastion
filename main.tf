@@ -1,8 +1,9 @@
 
 locals {
-  subnets     = data.ibm_is_subnet.vpc_subnet
-  tags        = tolist(setsubtract(concat(var.tags, ["bastion"]), [""]))
-  name        = "${replace(var.vpc_name, "/[^a-zA-Z0-9_\\-\\.]/", "")}-${var.label}"
+  subnets             = data.ibm_is_subnet.vpc_subnet
+  tags                = tolist(setsubtract(concat(var.tags, ["bastion"]), [""]))
+  name                = "${replace(var.vpc_name, "/[^a-zA-Z0-9_\\-\\.]/", "")}-${var.label}"
+  base_security_group = var.base_security_group != null ? var.base_security_group : data.ibm_is_vpc.vpc.default_security_group
 }
 
 resource null_resource print-names {
@@ -51,16 +52,10 @@ module "vsi-instance" {
   base_security_group  = var.base_security_group
 }
 
-resource ibm_is_security_group maintenance {
-  name           = "${local.name}-maintenance"
-  vpc            = data.ibm_is_vpc.vpc.id
-  resource_group = var.resource_group_id
-}
-
 resource ibm_is_security_group_rule ssh_to_host_in_maintenance {
   group     = module.vsi-instance.security_group_id
   direction = "outbound"
-  remote    = ibm_is_security_group.maintenance.id
+  remote    = local.base_security_group
   tcp {
     port_min = 22
     port_max = 22
@@ -68,7 +63,7 @@ resource ibm_is_security_group_rule ssh_to_host_in_maintenance {
 }
 
 resource ibm_is_security_group_rule maintenance_ssh_inbound {
-  group     = ibm_is_security_group.maintenance.id
+  group     = local.base_security_group
   direction = "inbound"
   remote    = module.vsi-instance.security_group_id
   tcp {
