@@ -43,11 +43,6 @@ output "security_group" {
 }
 
 output "maintenance_security_group_id" {
-  description = "The id of the security group that was created"
-  value       = ibm_is_security_group.maintenance.id
-}
-
-output "maintenance_security_group" {
-  description = "The security group that was created"
-  value       = ibm_is_security_group.maintenance
+  description = "The id of the security group that was used"
+  value       = local.base_security_group
 }
