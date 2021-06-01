@@ -1,0 +1,12 @@
+#!/bin/bash
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+WHITE='\033[0;37m'
+ORANGE='\033[0;34m'
+RESET='\033[0m'
+echo -e "${ORANGE}IBM Cloud Financial Services Systems ${RESET} ${RED}Authorized access only!!${RESET}"
+echo -e "${GREEN}All actions Will be monitored and recorded.${RESET}"
+echo -e "${GREEN}Users are accessing a financial services information system.${RESET}"
+echo -e "${GREEN}Information system usage may be monitored, recorded, and subject to audit.${RESET}"
+echo -e "${GREEN}Unauthorized use of the information system is prohibited and subject to criminal and civil penalties.${RESET}"
+echo -e "${GREEN}Use of the information system indicates consent to monitoring and recording.${RESET}"
