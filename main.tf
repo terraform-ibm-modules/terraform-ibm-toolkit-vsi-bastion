@@ -85,6 +85,11 @@ provisioner "file" {
   }
 
 provisioner "file" {
+    source      = "${path.module}/scripts/mfascript.sh"
+    destination = "/tmp/mfascript.sh"
+  }
+
+provisioner "file" {
     source      = "${path.module}/scripts/motd.txt"
     destination = "/tmp/motd.txt"
   }
@@ -94,6 +99,13 @@ provisioner "remote-exec" {
     inline     = [
       "chmod +x /tmp/pamscript.sh",
       "/tmp/pamscript.sh"
+    ]
+  }
+
+provisioner "remote-exec" {
+    inline     = [
+      "chmod +x /tmp/mfascript.sh",
+      "/tmp/mfascript.sh"
     ]
   }
 
