@@ -15,6 +15,6 @@ module "bastion" {
 
 resource null_resource write_public_ip {
   provisioner "local-exec" {
-    command = "echo -n '${module.bastion.private_ips[0]}' > .public-ip"
+    command = "echo -n '${module.bastion.public_ips[0]}' > .public-ip"
   }
 }
