@@ -15,38 +15,30 @@ apt-get update
 ## Enable MFA
 ##
 
-##### Enable Package Repo #####
-yum install epel-release -y
-
 ##### Install Google Authenticator #####
-yum install google-authenticator qrencode-libs -y
+apt-get install libpam-google-authenticator qrencode -y
+
+pam_auth1="/etc/pam.d/common-auth"
+
+echo "" >> $pam_auth1
+echo "auth required pam_google_authenticator.so nullok" >> $pam_auth1
+
 
 ##### Make following changes in  /etc/pam.d/sshd #####
 pam_conf1=/etc/pam.d/sshd
 
-##### Update below lines  next to "auth       include      postlogin"#####
-### auth    sufficient  pam_listfile.so item=user sense=allow file=/google-auth/authusers ###
-### auth required pam_google_authenticator.so nullok  secret=~/.ssh/.google_authenticator  ###
-
-sed -i "/^account    required     pam_sepermit.so/a auth\t\tsufficient\tpam_listfile.so item=user sense=allow file=/google-auth/authusers\nauth\trequired\tpam_google_authenticator.so nullok  secret=~/.ssh/.google_authenticator" $pam_conf1
+echo "" >> $pam_conf1
+echo "auth required pam_google_authenticator.so nullok" >> $pam_conf1
 
 
 ##### make following changes in /etc/ssh/sshd_config #####
 ssh_conf1="/etc/ssh/sshd_config"
-###** Uncomment following entry "#ChallengeResponseAuthentication yes" ###
 
+###** Uncomment following entry "#ChallengeResponseAuthentication yes" ###
 sed -i "/^[#]*ChallengeResponseAuthentication[[:space:]]yes.*/c\ChallengeResponseAuthentication yes" $ssh_conf1
 
-
 ### Comment following entry "ChallengeResponseAuthentication no" ###
-
 sed -i "s/^ChallengeResponseAuthentication[[:space:]]no/#&/" $ssh_conf1
-
-### Change following from "PubkeyAuthentication no" To "PubkeyAuthentication yes" ###
-
-#echo "PubkeyAuthentication yes" >> $ssh_conf1
-
-### Add following entry "AuthenticationMethods keyboard-interactive" ###
 
 #echo "AuthenticationMethods keyboard-interactive" >> $ssh_conf1
 echo "AuthenticationMethods publickey" >> $ssh_conf1
