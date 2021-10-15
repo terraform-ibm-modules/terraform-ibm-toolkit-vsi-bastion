@@ -9,4 +9,25 @@ module "bastion" {
   vpc_subnets         = module.subnets.subnets
   ssh_key_id          = module.vpcssh.id
   allow_deprecated_image = false
+  create_public_ip    = true
+  allow_ssh_from      = "0.0.0.0/0"
+  acl_rules           = [{
+    name = "inbound-all"
+    action = "allow"
+    direction = "inbound"
+    source = "0.0.0.0/0"
+    destination = "0.0.0.0/0"
+  }, {
+    name = "outbound-all"
+    action = "allow"
+    direction = "outbound"
+    source = "0.0.0.0/0"
+    destination = "0.0.0.0/0"
+  }]
+}
+
+resource null_resource write_public_ip {
+  provisioner "local-exec" {
+    command = "echo -n '${module.bastion.public_ips[0]}' > .public-ip"
+  }
 }

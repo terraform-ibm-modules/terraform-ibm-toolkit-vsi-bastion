@@ -29,7 +29,7 @@ data ibm_is_subnet vpc_subnet {
 }
 
 module "vsi-instance" {
-  source = "github.com/cloud-native-toolkit/terraform-ibm-vpc-vsi.git?ref=v1.7.1"
+  source = "github.com/cloud-native-toolkit/terraform-ibm-vpc-vsi.git?ref=v1.10.0"
 
   resource_group_id    = var.resource_group_id
   region               = var.region
@@ -51,6 +51,7 @@ module "vsi-instance" {
   allow_deprecated_image = var.allow_deprecated_image
   base_security_group  = var.base_security_group
   acl_rules            = var.acl_rules
+  target_network_range = var.target_network_range
 }
 
 resource ibm_is_security_group_rule ssh_to_host_in_maintenance {
