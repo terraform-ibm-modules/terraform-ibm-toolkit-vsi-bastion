@@ -25,9 +25,3 @@ module "bastion" {
     destination = "0.0.0.0/0"
   }]
 }
-
-resource null_resource write_public_ip {
-  provisioner "local-exec" {
-    command = "echo -n '${module.bastion.public_ips[0]}' > .public-ip"
-  }
-}
