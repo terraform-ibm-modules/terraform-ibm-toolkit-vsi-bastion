@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 0.13"
+  required_version = ">= 0.15"
 
   required_providers {
     ibm = {
@@ -7,4 +7,5 @@ terraform {
       version = ">= 1.17"
     }
   }
+  experiments = [module_variable_optional_attrs]
 }
