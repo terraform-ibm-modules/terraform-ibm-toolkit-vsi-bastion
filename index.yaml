@@ -10,28 +10,265 @@ versions:
   - platforms: []
     providers:
       - name: ibm
-        source: "ibm-cloud/ibm"
+        source: ibm-cloud/ibm
     dependencies:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
+        optional: true
+    variables:
+      - name: resource_group_id
+        type: string
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
+        moduleRef:
+          id: resource_group
+          output: id
+      - name: region
+        type: string
+        description: The IBM Cloud region where the cluster will be/has been installed.
+        scope: global
+      - name: ibmcloud_api_key
+        type: string
+        description: The IBM Cloud api token
+        scope: global
+      - name: vpc_name
+        type: string
+        description: The name of the vpc instance
+        moduleRef:
+          id: vpc
+          output: name
+      - name: label
+        type: string
+        description: The label for the server instance
+        default: server
+      - name: image_name
+        type: string
+        description: The name of the image to use for the virtual server
+        default: ibm-ubuntu-18-04-6-minimal-amd64-2
+      - name: vpc_subnet_count
+        type: number
+        description: Number of vpc subnets
+        moduleRef:
+          id: subnets
+          output: count
+      - name: vpc_subnets
+        type: |-
+          list(object({
+              label = string
+              id    = string
+              zone  = string
+            }))
+        description: List of subnets with labels
+        moduleRef:
+          id: subnets
+          output: subnets
+      - name: profile_name
+        type: string
+        description: Instance profile to use for the bastion instance
+        default: cx2-2x4
+      - name: ssh_key_id
+        type: string
+        description: SSH key ID to inject into the virtual server instance
+        moduleRef:
+          id: vpcssh
+          output: id
+      - name: allow_ssh_from
+        type: string
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
+        default: 10.0.0.0/8
+      - name: create_public_ip
+        type: bool
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
+        default: false
+      - name: init_script
+        type: string
+        default: ''
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+      - name: tags
+        type: list(string)
+        default: []
+        description: Tags that should be added to the instance
+        scope: module
+      - name: kms_enabled
+        type: bool
+        description: Flag indicating that the volumes should be encrypted using a KMS.
+        default: false
+      - name: kms_key_crn
+        type: string
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
+        moduleRef:
+          id: kms_key
+          output: crn
+        optional: true
+      - name: auto_delete_volume
+        type: bool
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
+        default: true
+      - name: security_group_rules
+        type: |-
+          list(object({
+             name=string,
+             direction=string,
+             remote=optional(string),
+             ip_version=optional(string),
+             tcp=optional(object({
+               port_min=number,
+               port_max=number
+             })),
+             udp=optional(object({
+               port_min=number,
+               port_max=number
+             })),
+             icmp=optional(object({
+               type=number,
+               code=optional(number)
+             })),
+            }))
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: |-
+          [
+              {
+                name      = "private-network"
+                direction = "outbound"
+                remote    = "10.0.0.0/8"
+              },
+              {
+                name      = "service-endpoints"
+                direction = "outbound"
+                remote    = "161.26.0.0/16"
+              },
+              {
+                name      = "iaas-endpoints"
+                direction = "outbound"
+                remote    = "166.8.0.0/14"
+              }
+            ]
+        scope: ignore
+      - name: allow_deprecated_image
+        type: bool
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
+        default: true
+        scope: ignore
+      - name: base_security_group
+        type: string
+        description: >-
+          The id of the base security group to use for the VSI instance. If not
+          provided the default VPC security group will be used.
+        default: 'null'
+        moduleRef:
+          id: vpc
+          output: base_security_group
+      - name: acl_rules
+        type: |-
+          list(object({
+              name=string,
+              action=string,
+              direction=string,
+              source=string,
+              destination=string,
+              tcp=optional(object({
+                port_min=number,
+                port_max=number,
+                source_port_min=number,
+                source_port_max=number
+              })),
+              udp=optional(object({
+                port_min=number,
+                port_max=number,
+                source_port_min=number,
+                source_port_max=number
+              })),
+              icmp=optional(object({
+                type=number,
+                code=optional(number)
+              })),
+            }))
+        description: List of rules to set on the subnet access control list
+        default: '[]'
+      - name: target_network_range
+        type: string
+        description: >-
+          The ip address range that should be used for the network acl rules
+          generated from the security groups
+        default: 0.0.0.0/0
+    version: v1.10.0
+    outputs:
+      - name: output ids {
+        description: The instance ids
+      - name: output names {
+        description: The instance names
+      - name: output vpc_name {
+      - name: output count {
+      - name: output instance_count {
+      - name: output public_ips {
+      - name: output private_ips {
+      - name: output network_interface_ids {
+      - name: security_group_id
+        description: The id of the security group that was created
+      - name: security_group
+        description: The security group that was created
+      - name: maintenance_security_group_id
+        description: The id of the security group that was used
+  - platforms: []
+    providers:
+      - name: ibm
+        source: ibm-cloud/ibm
+    dependencies:
+      - id: resource_group
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
+            version: '>= 1.0.0'
+      - id: vpc
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
+            version: '>= 1.0.0'
+      - id: subnets
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
+            version: '>= 1.0.0'
+      - id: vpcssh
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
+            version: '>= 1.0.0'
+      - id: kms_key
+        refs:
+          - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -45,8 +282,10 @@ versions:
           id: vpc
           output: base_security_group
         type: string
-        description: The id of the base security group to use for the VSI instance. If not provided the default VPC security group will be used.
-        default: "null"
+        description: >-
+          The id of the base security group to use for the VSI instance. If not
+          provided the default VPC security group will be used.
+        default: 'null'
         optional: true
       - name: vpc_subnet_count
         moduleRef:
@@ -70,7 +309,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -97,18 +338,29 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = private-network direction = outbound remote = 10.0.0.0/8 }, { name = service-endpoints direction = outbound remote = 161.26.0.0/16 }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14 } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = private-network direction = outbound remote = 10.0.0.0/8 },
+          { name = service-endpoints direction = outbound remote = 161.26.0.0/16
+          }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14
+          } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -128,18 +380,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -148,7 +406,9 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: acl_rules
@@ -158,14 +418,20 @@ versions:
         optional: true
       - name: target_network_range
         type: string
-        description: The ip address range that should be used for the network acl rules generated from the security groups
+        description: >-
+          The ip address range that should be used for the network acl rules
+          generated from the security groups
         default: 0.0.0.0/0
         optional: true
     version: v1.9.0
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -177,8 +443,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -190,23 +460,23 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -220,8 +490,10 @@ versions:
           id: vpc
           output: base_security_group
         type: string
-        description: The id of the base security group to use for the VSI instance. If not provided the default VPC security group will be used.
-        default: "null"
+        description: >-
+          The id of the base security group to use for the VSI instance. If not
+          provided the default VPC security group will be used.
+        default: 'null'
         optional: true
       - name: vpc_subnet_count
         moduleRef:
@@ -245,7 +517,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -272,18 +546,29 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = private-network direction = outbound remote = 10.0.0.0/8 }, { name = service-endpoints direction = outbound remote = 161.26.0.0/16 }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14 } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = private-network direction = outbound remote = 10.0.0.0/8 },
+          { name = service-endpoints direction = outbound remote = 161.26.0.0/16
+          }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14
+          } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -303,18 +588,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -323,7 +614,9 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: acl_rules
@@ -333,14 +626,20 @@ versions:
         optional: true
       - name: target_network_range
         type: string
-        description: The ip address range that should be used for the network acl rules generated from the security groups
+        description: >-
+          The ip address range that should be used for the network acl rules
+          generated from the security groups
         default: 0.0.0.0/0
         optional: true
     version: v1.8.0
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -352,8 +651,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -365,23 +668,23 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -395,8 +698,10 @@ versions:
           id: vpc
           output: base_security_group
         type: string
-        description: The id of the base security group to use for the VSI instance. If not provided the default VPC security group will be used.
-        default: "null"
+        description: >-
+          The id of the base security group to use for the VSI instance. If not
+          provided the default VPC security group will be used.
+        default: 'null'
         optional: true
       - name: vpc_subnet_count
         moduleRef:
@@ -420,7 +725,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -447,18 +754,29 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = private-network direction = outbound remote = 10.0.0.0/8 }, { name = service-endpoints direction = outbound remote = 161.26.0.0/16 }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14 } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = private-network direction = outbound remote = 10.0.0.0/8 },
+          { name = service-endpoints direction = outbound remote = 161.26.0.0/16
+          }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14
+          } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -478,18 +796,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -498,7 +822,9 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: acl_rules
@@ -508,9 +834,13 @@ versions:
         optional: true
     version: v1.7.1
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -522,8 +852,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -535,23 +869,23 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -565,8 +899,10 @@ versions:
           id: vpc
           output: base_security_group
         type: string
-        description: The id of the base security group to use for the VSI instance. If not provided the default VPC security group will be used.
-        default: "null"
+        description: >-
+          The id of the base security group to use for the VSI instance. If not
+          provided the default VPC security group will be used.
+        default: 'null'
         optional: true
       - name: vpc_subnet_count
         moduleRef:
@@ -590,7 +926,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -617,18 +955,29 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = private-network direction = outbound remote = 10.0.0.0/8 }, { name = service-endpoints direction = outbound remote = 161.26.0.0/16 }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14 } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = private-network direction = outbound remote = 10.0.0.0/8 },
+          { name = service-endpoints direction = outbound remote = 161.26.0.0/16
+          }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14
+          } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -648,18 +997,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -668,7 +1023,9 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: acl_rules
@@ -678,9 +1035,13 @@ versions:
         optional: true
     version: v1.7.0
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -692,8 +1053,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -705,23 +1070,23 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -735,8 +1100,10 @@ versions:
           id: vpc
           output: base_security_group
         type: string
-        description: The id of the base security group to use for the VSI instance. If not provided the default VPC security group will be used.
-        default: "null"
+        description: >-
+          The id of the base security group to use for the VSI instance. If not
+          provided the default VPC security group will be used.
+        default: 'null'
         optional: true
       - name: vpc_subnet_count
         moduleRef:
@@ -760,7 +1127,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -787,18 +1156,29 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = private-network direction = outbound remote = 10.0.0.0/8 }, { name = service-endpoints direction = outbound remote = 161.26.0.0/16 }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14 } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = private-network direction = outbound remote = 10.0.0.0/8 },
+          { name = service-endpoints direction = outbound remote = 161.26.0.0/16
+          }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14
+          } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -818,18 +1198,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -838,14 +1224,20 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
     version: v1.6.0
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -857,8 +1249,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -870,23 +1266,23 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -900,8 +1296,10 @@ versions:
           id: vpc
           output: base_security_group
         type: string
-        description: The id of the base security group to use for the VSI instance. If not provided the default VPC security group will be used.
-        default: "null"
+        description: >-
+          The id of the base security group to use for the VSI instance. If not
+          provided the default VPC security group will be used.
+        default: 'null'
         optional: true
       - name: vpc_subnet_count
         moduleRef:
@@ -925,7 +1323,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -952,18 +1352,29 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = private-network direction = outbound remote = 10.0.0.0/8 }, { name = service-endpoints direction = outbound remote = 161.26.0.0/16 }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14 } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = private-network direction = outbound remote = 10.0.0.0/8 },
+          { name = service-endpoints direction = outbound remote = 161.26.0.0/16
+          }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14
+          } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -983,18 +1394,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -1003,14 +1420,20 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
     version: v1.5.1
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -1022,8 +1445,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -1037,23 +1464,23 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -1084,7 +1511,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -1111,18 +1540,29 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = private-network direction = outbound remote = 10.0.0.0/8 }, { name = service-endpoints direction = outbound remote = 161.26.0.0/16 }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14 } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = private-network direction = outbound remote = 10.0.0.0/8 },
+          { name = service-endpoints direction = outbound remote = 161.26.0.0/16
+          }, { name = iaas-endpoints direction = outbound remote = 166.8.0.0/14
+          } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -1142,18 +1582,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -1162,19 +1608,27 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: base_security_group
         type: string
-        description: The id of the base security group to use for the VSI instance. If not provided the default VPC security group will be used.
-        default: "null"
+        description: >-
+          The id of the base security group to use for the VSI instance. If not
+          provided the default VPC security group will be used.
+        default: 'null'
         optional: true
     version: v1.5.0
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -1186,8 +1640,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -1201,23 +1659,23 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -1248,7 +1706,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -1275,18 +1735,30 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -1306,18 +1778,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -1326,14 +1804,20 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
     version: v1.4.1
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -1345,8 +1829,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -1360,23 +1848,23 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -1407,7 +1895,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -1434,18 +1924,30 @@ versions:
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -1465,18 +1967,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -1485,14 +1993,20 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
     version: v1.4.0
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -1504,8 +2018,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -1519,28 +2037,29 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: cos_bucket
         refs:
-          - source: github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
-            version: ">= 0.0.1"
+          - source: >-
+              github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
+            version: '>= 0.0.1'
         optional: true
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -1571,7 +2090,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -1599,25 +2120,37 @@ versions:
         optional: true
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
       - name: kms_key_crn
         moduleRef:
           id: kms_key
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -1637,18 +2170,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -1657,14 +2196,20 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
     version: v1.3.8
     outputs:
-      - name: output ids {   description = "The instance ids"   value       = module.vsi-instance.ids }
+      - name: >-
+          output ids {   description = "The instance ids"   value       =
+          module.vsi-instance.ids }
         description: The instance ids
-      - name: output names {   description = "The instance names"   value       = module.vsi-instance.names }
+      - name: >-
+          output names {   description = "The instance names"   value       =
+          module.vsi-instance.names }
         description: The instance names
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
@@ -1676,8 +2221,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -1691,28 +2240,29 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: cos_bucket
         refs:
-          - source: github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
-            version: ">= 0.0.1"
+          - source: >-
+              github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
+            version: '>= 0.0.1'
         optional: true
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -1743,7 +2293,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -1771,25 +2323,37 @@ versions:
         optional: true
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
       - name: kms_key_crn
         moduleRef:
           id: kms_key
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: security_group_rules
         scope: ignore
         type: string
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } } ]
         optional: true
       - name: allow_deprecated_image
         scope: ignore
         type: bool
-        description: Flag indicating that deprecated images should be allowed for use in the Virtual Server instance. If the value is `false` and the image is deprecated then the module will fail to provision
+        description: >-
+          Flag indicating that deprecated images should be allowed for use in
+          the Virtual Server instance. If the value is `false` and the image is
+          deprecated then the module will fail to provision
         default: true
         optional: true
       - name: label
@@ -1809,18 +2373,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -1829,7 +2399,9 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
     version: v1.3.7
@@ -1844,8 +2416,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -1859,28 +2435,29 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: cos_bucket
         refs:
-          - source: github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
-            version: ">= 0.0.1"
+          - source: >-
+              github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
+            version: '>= 0.0.1'
         optional: true
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -1911,7 +2488,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -1939,15 +2518,17 @@ versions:
         optional: true
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
       - name: kms_key_crn
         moduleRef:
           id: kms_key
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: label
         type: string
         description: The label for the server instance
@@ -1965,18 +2546,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -1985,13 +2572,22 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: security_group_rules
         type: list(object({}))
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } } ]'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } } ]
         optional: true
     version: v1.3.6
     outputs:
@@ -2005,8 +2601,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -2020,28 +2620,29 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: cos_bucket
         refs:
-          - source: github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
-            version: ">= 0.0.1"
+          - source: >-
+              github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
+            version: '>= 0.0.1'
         optional: true
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -2072,7 +2673,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -2102,15 +2705,17 @@ versions:
         optional: true
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
       - name: kms_key_crn
         moduleRef:
           id: kms_key
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: label
         type: string
         description: The label for the server instance
@@ -2128,18 +2733,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -2148,13 +2759,23 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: security_group_rules
         type: list(object({}))
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } }, { name = icmp_outbound direction =
+          outbound remote = 0.0.0.0/0 icmp = {
         optional: true
     version: v1.3.5
     outputs:
@@ -2168,8 +2789,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -2183,28 +2808,29 @@ versions:
       - id: resource_group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: cos_bucket
         refs:
-          - source: github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
-            version: ">= 0.0.1"
+          - source: >-
+              github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
+            version: '>= 0.0.1'
         optional: true
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -2226,7 +2852,9 @@ versions:
           id: resource_group
           output: id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -2256,15 +2884,17 @@ versions:
         optional: true
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
       - name: kms_key_crn
         moduleRef:
           id: kms_key
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: label
         type: string
         description: The label for the server instance
@@ -2293,18 +2923,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -2313,7 +2949,9 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: security_group_rules
@@ -2322,8 +2960,16 @@ versions:
                 }
               }
             ]
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } }, { name = icmp_outbound direction =
+          outbound remote = 0.0.0.0/0 icmp = {
         optional: true
     version: v1.3.4
     outputs:
@@ -2337,8 +2983,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -2352,28 +3002,29 @@ versions:
       - id: resource-group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: cos_bucket
         refs:
-          - source: github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
-            version: ">= 0.0.1"
+          - source: >-
+              github.com/cloud-native-toolkit/terraform-ibm-object-storage-bucket
+            version: '>= 0.0.1'
         optional: true
       - id: kms_key
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-kms-key
-            version: ">= 0.0.1"
+            version: '>= 0.0.1'
         optional: true
     variables:
       - name: vpc_name
@@ -2423,18 +3074,22 @@ versions:
         optional: true
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
       - name: kms_key_crn
         moduleRef:
           id: kms_key
           output: crn
         optional: true
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
       - name: resource_group_id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: label
         type: string
         description: The label for the server instance
@@ -2463,18 +3118,24 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -2483,7 +3144,9 @@ versions:
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: security_group_rules
@@ -2492,8 +3155,16 @@ versions:
                 }
               }
             ]
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } }, { name = icmp_outbound direction =
+          outbound remote = 0.0.0.0/0 icmp = {
         optional: true
     version: v1.3.3
     outputs:
@@ -2507,8 +3178,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -2522,19 +3197,19 @@ versions:
       - id: resource-group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
     variables:
       - name: vpc_name
         moduleRef:
@@ -2578,7 +3253,9 @@ versions:
         optional: true
       - name: resource_group_id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: label
         type: string
         description: The label for the server instance
@@ -2607,23 +3284,29 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: flow_log_cos_bucket_name
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -2632,12 +3315,16 @@ versions:
         optional: true
       - name: kms_key_crn
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: security_group_rules
@@ -2646,8 +3333,16 @@ versions:
                 }
               }
             ]
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } }, { name = icmp_outbound direction =
+          outbound remote = 0.0.0.0/0 icmp = {
         optional: true
     version: v1.3.2
     outputs:
@@ -2661,8 +3356,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -2676,19 +3375,19 @@ versions:
       - id: resource-group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
     variables:
       - name: vpc_name
         moduleRef:
@@ -2732,7 +3431,9 @@ versions:
         optional: true
       - name: resource_group_id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: label
         type: string
         description: The label for the server instance
@@ -2761,23 +3462,29 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: flow_log_cos_bucket_name
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -2786,12 +3493,16 @@ versions:
         optional: true
       - name: kms_key_crn
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: security_group_rules
@@ -2800,8 +3511,16 @@ versions:
                 }
               }
             ]
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } }, { name = icmp_outbound direction =
+          outbound remote = 0.0.0.0/0 icmp = {
         optional: true
     version: v1.3.1
     outputs:
@@ -2815,8 +3534,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -2830,19 +3553,19 @@ versions:
       - id: resource-group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
     variables:
       - name: vpc_name
         moduleRef:
@@ -2886,7 +3609,9 @@ versions:
         optional: true
       - name: resource_group_id
         type: string
-        description: The id of the IBM Cloud resource group where the VPC has been provisioned.
+        description: >-
+          The id of the IBM Cloud resource group where the VPC has been
+          provisioned.
       - name: label
         type: string
         description: The label for the server instance
@@ -2915,23 +3640,29 @@ versions:
         optional: true
       - name: allow_ssh_from
         type: string
-        description: An IP address, a CIDR block, or a single security group identifier to allow incoming SSH connection to the virtual server
+        description: >-
+          An IP address, a CIDR block, or a single security group identifier to
+          allow incoming SSH connection to the virtual server
         default: 10.0.0.0/8
         optional: true
       - name: create_public_ip
         type: bool
-        description: Set whether to allocate a public IP address for the virtual server instance
+        description: >-
+          Set whether to allocate a public IP address for the virtual server
+          instance
         default: false
         optional: true
       - name: init_script
         type: string
-        description: Script to run during the instance initialization. Defaults to an Ubuntu specific script when set to empty
-        default: ""
+        description: >-
+          Script to run during the instance initialization. Defaults to an
+          Ubuntu specific script when set to empty
+        default: ''
         optional: true
       - name: flow_log_cos_bucket_name
         type: string
         description: Cloud Object Storage bucket id for flow logs (optional)
-        default: ""
+        default: ''
         optional: true
       - name: kms_enabled
         type: bool
@@ -2940,12 +3671,16 @@ versions:
         optional: true
       - name: kms_key_crn
         type: string
-        description: The crn of the root key in the kms instance. Required if kms_enabled is true
-        default: "null"
+        description: >-
+          The crn of the root key in the kms instance. Required if kms_enabled
+          is true
+        default: 'null'
         optional: true
       - name: auto_delete_volume
         type: bool
-        description: Flag indicating that any attached volumes should be deleted when the instance is deleted
+        description: >-
+          Flag indicating that any attached volumes should be deleted when the
+          instance is deleted
         default: true
         optional: true
       - name: security_group_rules
@@ -2954,8 +3689,16 @@ versions:
                 }
               }
             ]
-        description: List of security group rules to set on the bastion security group in addition to the SSH rules
-        default: '[ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 80 port_max = 80 } }, { name = https_outbound direction = outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } }, { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = { port_min = 53 port_max = 53 } }, { name = icmp_outbound direction = outbound remote = 0.0.0.0/0 icmp = {'
+        description: >-
+          List of security group rules to set on the bastion security group in
+          addition to the SSH rules
+        default: >-
+          [ { name = http_outbound direction = outbound remote = 0.0.0.0/0 tcp =
+          { port_min = 80 port_max = 80 } }, { name = https_outbound direction =
+          outbound remote = 0.0.0.0/0 tcp = { port_min = 443 port_max = 443 } },
+          { name = dns_outbound direction = outbound remote = 0.0.0.0/0 udp = {
+          port_min = 53 port_max = 53 } }, { name = icmp_outbound direction =
+          outbound remote = 0.0.0.0/0 icmp = {
         optional: true
     version: v1.3.0
     outputs:
@@ -2967,8 +3710,12 @@ versions:
         description: output public_ips {   value = module.vsi-instance.public_ips }
       - name: output private_ips {   value = module.vsi-instance.private_ips }
         description: output private_ips {   value = module.vsi-instance.private_ips }
-      - name: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
-        description: output network_interface_ids {   value = module.vsi-instance.network_interface_ids }
+      - name: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
+        description: >-
+          output network_interface_ids {   value =
+          module.vsi-instance.network_interface_ids }
       - name: security_group_id
         description: The id of the security group that was created
       - name: security_group
@@ -2982,19 +3729,19 @@ versions:
       - id: resource-group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
     variables:
       - name: vpc_name
         moduleRef:
@@ -3019,7 +3766,9 @@ versions:
           id: resource-group
           output: name
         type: string
-        description: The name of the IBM Cloud resource group where the Bastion instance will be created.
+        description: >-
+          The name of the IBM Cloud resource group where the Bastion instance
+          will be created.
       - name: ssh_key_id
         moduleRef:
           id: vpcssh
@@ -3034,7 +3783,7 @@ versions:
         scope: global
         type: string
         description: The name of the vpc resource
-        default: ""
+        default: ''
         optional: true
       - name: ibmcloud_api_key
         scope: global
@@ -3061,26 +3810,30 @@ versions:
         description: output public_ips {   value = module.bastion[*].bastion_public_ip }
       - name: output private_ips {   value = module.bastion[*].bastion_private_ip }
         description: output private_ips {   value = module.bastion[*].bastion_private_ip }
-      - name: output network_interface_ids {   value = module.bastion[*].bastion_network_interface_ids[0] }
-        description: output network_interface_ids {   value = module.bastion[*].bastion_network_interface_ids[0] }
+      - name: >-
+          output network_interface_ids {   value =
+          module.bastion[*].bastion_network_interface_ids[0] }
+        description: >-
+          output network_interface_ids {   value =
+          module.bastion[*].bastion_network_interface_ids[0] }
   - platforms: []
     dependencies:
       - id: resource-group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
     variables:
       - name: vpc_name
         moduleRef:
@@ -3119,33 +3872,37 @@ versions:
       - name: tags
         scope: module
         type: list(string)
-        default: ""
+        default: ''
     version: v1.1.1
     outputs:
       - name: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
       - name: output bastion_ips {   value = module.bastion[*].bastion_public_ip }
         description: output bastion_ips {   value = module.bastion[*].bastion_public_ip }
-      - name: output bastion_private_ips {   value = module.bastion[*].bastion_private_ip }
-        description: output bastion_private_ips {   value = module.bastion[*].bastion_private_ip }
+      - name: >-
+          output bastion_private_ips {   value =
+          module.bastion[*].bastion_private_ip }
+        description: >-
+          output bastion_private_ips {   value =
+          module.bastion[*].bastion_private_ip }
   - platforms: []
     dependencies:
       - id: resource-group
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-resource-group
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: subnets
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-subnets
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
       - id: vpcssh
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc-ssh
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
     variables:
       - name: vpc_name
         moduleRef:
@@ -3190,14 +3947,18 @@ versions:
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
       - name: output bastion_ips {   value = module.bastion[*].bastion_public_ip }
         description: output bastion_ips {   value = module.bastion[*].bastion_public_ip }
-      - name: output bastion_private_ips {   value = module.bastion[*].bastion_private_ip }
-        description: output bastion_private_ips {   value = module.bastion[*].bastion_private_ip }
+      - name: >-
+          output bastion_private_ips {   value =
+          module.bastion[*].bastion_private_ip }
+        description: >-
+          output bastion_private_ips {   value =
+          module.bastion[*].bastion_private_ip }
   - platforms: []
     dependencies:
       - id: vpc
         refs:
           - source: github.com/cloud-native-toolkit/terraform-ibm-vpc
-            version: ">= 1.0.0"
+            version: '>= 1.0.0'
     variables:
       - name: vpc_name
         moduleRef:
@@ -3214,7 +3975,9 @@ versions:
       - name: resource_group_name
         scope: global
         type: string
-        description: The name of the IBM Cloud resource group where the cluster will be created/can be found.
+        description: >-
+          The name of the IBM Cloud resource group where the cluster will be
+          created/can be found.
       - name: region
         scope: global
         type: string
@@ -3223,7 +3986,7 @@ versions:
         scope: global
         type: string
         description: The name of the vpc resource
-        default: ""
+        default: ''
         optional: true
       - name: ibmcloud_api_key
         scope: global
@@ -3246,28 +4009,22 @@ versions:
         description: output vpc_name {   value = data.ibm_is_vpc.vpc.name }
       - name: output bastion_ip {   value = module.bastion.bastion_public_ip }
         description: output bastion_ip {   value = module.bastion.bastion_public_ip }
-      - name: output bastion_private_ip {   value = module.bastion.bastion_private_ip }
-        description: output bastion_private_ip {   value = module.bastion.bastion_private_ip }
-      - name: 'output instance_ips {   value = [     for instance in local.instances : instance.primary_network_interface.0.primary_ipv4_address   ] }'
-        description: 'output instance_ips {   value = [     for instance in local.instances : instance.primary_network_interface.0.primary_ipv4_address   ] }'
+      - name: >-
+          output bastion_private_ip {   value =
+          module.bastion.bastion_private_ip }
+        description: >-
+          output bastion_private_ip {   value =
+          module.bastion.bastion_private_ip }
+      - name: >-
+          output instance_ips {   value = [     for instance in local.instances
+          : instance.primary_network_interface.0.primary_ipv4_address   ] }
+        description: >-
+          output instance_ips {   value = [     for instance in local.instances
+          : instance.primary_network_interface.0.primary_ipv4_address   ] }
   - platforms:
       - kubernetes
       - ocp3
       - ocp4
     dependencies: []
-    #    - id: cluster
-    #      refs:
-    #        - source: github.com/ibm-garage-cloud/terraform-ibm-container-platform
-    #          version: ">= 1.7.0"
-    #        - source: github.com/ibm-garage-cloud/terraform-k8s-ocp-cluster
-    #          version: ">= 2.0.0"
-    #    - id: namespace
-    #      refs:
-    #        - source: github.com/ibm-garage-cloud/terraform-k8s-namespace
-    #          version: ">= 2.1.0"
-    #    - id: dashboard
-    #      refs:
-    #        - source: github.com/ibm-garage-cloud/terraform-k8s-dashboard
-    #          version: ">= 1.6.0"
     variables: []
     version: v0.0.0
