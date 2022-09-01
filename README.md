@@ -33,7 +33,7 @@ The module depends on the following software components:
 
 This module makes use of the output from other modules:
 
-- VPC - github.com/cloud-native-toolkit/terraform-ibm-vpc
+- VPC: github.com/cloud-native-toolkit/terraform-ibm-vpc
 
 ## Example usage
 
