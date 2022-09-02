@@ -16,6 +16,7 @@ variable "ibmcloud_api_key" {
 variable "vpc_name" {
   type        = string
   description = "The name of the vpc instance"
+  default="migrate-move"
 }
 
 variable "label" {
