@@ -16,6 +16,7 @@ variable "ibmcloud_api_key" {
 variable "vpc_name" {
   type        = string
   description = "The name of the vpc instance"
+  default="migrate-move"
 }
 
 variable "label" {
@@ -27,7 +28,7 @@ variable "label" {
 variable "image_name" {
   type        = string
   description = "The name of the image to use for the virtual server"
-  default     = "ibm-ubuntu-18-04-6-minimal-amd64-2"
+  default     = "ibm-ubuntu-22-04-minimal-amd64-1"
 }
 
 variable "vpc_subnet_count" {
