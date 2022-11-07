@@ -1,34 +1,34 @@
-output ids {
+output "ids" {
   description = "The instance ids"
   value       = module.vsi-instance.ids
 }
 
-output names {
+output "names" {
   description = "The instance names"
   value       = module.vsi-instance.names
 }
 
-output vpc_name {
+output "vpc_name" {
   value = data.ibm_is_vpc.vpc.name
 }
 
-output count {
+output "count" {
   value = var.vpc_subnet_count
 }
 
-output instance_count {
+output "instance_count" {
   value = var.vpc_subnet_count
 }
 
-output public_ips {
+output "public_ips" {
   value = module.vsi-instance.public_ips
 }
 
-output private_ips {
+output "private_ips" {
   value = module.vsi-instance.private_ips
 }
 
-output network_interface_ids {
+output "network_interface_ids" {
   value = module.vsi-instance.network_interface_ids
 }
 
