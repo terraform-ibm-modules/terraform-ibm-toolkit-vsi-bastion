@@ -1,5 +1,7 @@
 # VSI Bastion module
 
+:warning: This module is no longer maintained.
+
 IBM Virtual Private Cloud (VPC) comes with an additional layer of security as your workload can be completely hidden from the public internet. There are times, however, when you will want to get into this private network. A common practice is to use a Bastion host to jump into your VPC from a machine outside of the private network. Another option is to install VPN software inside your VPC to extend the secure VPC network to your local network.
 
 OpenVPN is a popular VPN software solution that can be easily installed on a server and offer a simple way to reach all the servers in your VPC from your local machine.
